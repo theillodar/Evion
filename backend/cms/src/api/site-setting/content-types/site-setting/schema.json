@@ -1,0 +1,32 @@
+{
+  "kind": "singleType",
+  "collectionName": "site_settings",
+  "info": {
+    "singularName": "site-setting",
+    "pluralName": "site-settings",
+    "displayName": "Site Setting"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "telegramLink": {
+      "type": "string"
+    },
+    "whatsappLink": {
+      "type": "string"
+    },
+    "instagramLink": {
+      "type": "string"
+    },
+    "tiktokLink": {
+      "type": "string"
+    },
+    "managerTelegramUsername": {
+      "type": "string"
+    },
+    "managerWhatsappNumber": {
+      "type": "string"
+    }
+  }
+}
