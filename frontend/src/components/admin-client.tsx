@@ -63,11 +63,24 @@ function parseNameEntity(entry: any): { id: number; name: string } {
 }
 
 async function readApiError(response: Response, fallback: string): Promise<string> {
+  const statusText = `HTTP ${response.status}`;
   try {
-    const payload = await response.json();
-    return payload?.error?.message || payload?.message || fallback;
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const payload = await response.json();
+      const message = payload?.error?.message || payload?.error || payload?.message;
+      if (typeof message === "string" && message.trim()) {
+        return `${message} (${statusText})`;
+      }
+    } else {
+      const text = (await response.text()).trim();
+      if (text && !text.startsWith("<!DOCTYPE") && !text.startsWith("<html")) {
+        return `${text.slice(0, 240)} (${statusText})`;
+      }
+    }
+    return `${fallback} (${statusText})`;
   } catch {
-    return fallback;
+    return `${fallback} (${statusText})`;
   }
 }
 

@@ -21,10 +21,36 @@ async function proxy(request: Request, ctx: Ctx): Promise<Response> {
   }
 
   const params = await ctx.params;
-  const base = (process.env.STRAPI_URL ?? process.env.NEXT_PUBLIC_STRAPI_URL ?? "http://localhost:1337").replace(/\/$/, "");
-  const token = process.env.STRAPI_API_TOKEN;
+  const rawBase = (process.env.STRAPI_URL ?? process.env.NEXT_PUBLIC_STRAPI_URL ?? "").trim();
+  const base = rawBase.replace(/\/+$/, "").replace(/\/api$/, "");
+  const token = (process.env.STRAPI_API_TOKEN ?? "").trim();
   const requestUrl = new URL(request.url);
   const apiPath = (params.path ?? []).join("/");
+
+  if (!base) {
+    return new Response(
+      JSON.stringify({ error: "Server misconfiguration: STRAPI_URL is not set" }),
+      {
+        status: 500,
+        headers: {
+          "content-type": "application/json",
+        },
+      }
+    );
+  }
+
+  if (method !== "GET" && method !== "HEAD" && !token) {
+    return new Response(
+      JSON.stringify({ error: "Server misconfiguration: STRAPI_API_TOKEN is not set for write operations" }),
+      {
+        status: 500,
+        headers: {
+          "content-type": "application/json",
+        },
+      }
+    );
+  }
+
   const target = `${base}/api/${apiPath}${requestUrl.search}`;
 
   const contentType = request.headers.get("content-type") || "";
@@ -48,12 +74,26 @@ async function proxy(request: Request, ctx: Ctx): Promise<Response> {
     }
   }
 
-  const response = await fetch(target, {
-    method: request.method,
-    headers,
-    body,
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(target, {
+      method: request.method,
+      headers,
+      body,
+      cache: "no-store",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown proxy error";
+    return new Response(
+      JSON.stringify({ error: `Failed to reach Strapi: ${message}` }),
+      {
+        status: 502,
+        headers: {
+          "content-type": "application/json",
+        },
+      }
+    );
+  }
 
   const outgoingHeaders = new Headers();
   const responseType = response.headers.get("content-type");
