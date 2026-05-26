@@ -13,7 +13,6 @@ const categoryTranslationMap: Record<string, Record<Locale, string>> = {
   Watches: { pl: "Zegarki", uk: "Годинники", en: "Watches" },
 
   // Polish variants
-  Audio: { pl: "Audio", uk: "Аудіотехніка", en: "Audio" },
   Telefony: { pl: "Telefony", uk: "Телефони", en: "Phones" },
   Komputery: { pl: "Komputery", uk: "Комп'ютери", en: "Computers" },
   Akcesoria: { pl: "Akcesoria", uk: "Аксесуари", en: "Accessories" },
