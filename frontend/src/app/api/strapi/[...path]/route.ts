@@ -9,6 +9,35 @@ type Ctx = {
   }>;
 };
 
+async function getStrapiAdminToken(base: string): Promise<string | null> {
+  const email = (process.env.STRAPI_ADMIN_EMAIL ?? "").trim();
+  const password = (process.env.STRAPI_ADMIN_PASSWORD ?? "").trim();
+
+  if (!email || !password) {
+    return null;
+  }
+
+  const response = await fetch(`${base}/admin/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = (await response.json()) as { data?: { token?: string } };
+  const token = payload?.data?.token;
+  return typeof token === "string" && token.trim() ? token.trim() : null;
+}
+
 async function proxy(request: Request, ctx: Ctx): Promise<Response> {
   const method = request.method.toUpperCase();
   if (method !== "GET" && method !== "HEAD" && !isAdminRequest(request)) {
@@ -23,7 +52,7 @@ async function proxy(request: Request, ctx: Ctx): Promise<Response> {
   const params = await ctx.params;
   const rawBase = (process.env.STRAPI_URL ?? process.env.NEXT_PUBLIC_STRAPI_URL ?? "").trim();
   const base = rawBase.replace(/\/+$/, "").replace(/\/api$/, "");
-  const token = (process.env.STRAPI_API_TOKEN ?? "").trim();
+  const staticToken = (process.env.STRAPI_API_TOKEN ?? "").trim();
   const requestUrl = new URL(request.url);
   const apiPath = (params.path ?? []).join("/");
 
@@ -39,9 +68,20 @@ async function proxy(request: Request, ctx: Ctx): Promise<Response> {
     );
   }
 
-  if (method !== "GET" && method !== "HEAD" && !token) {
+  let bearerToken = staticToken;
+  if (method !== "GET" && method !== "HEAD" && !bearerToken) {
+    const fallbackToken = await getStrapiAdminToken(base);
+    if (fallbackToken) {
+      bearerToken = fallbackToken;
+    }
+  }
+
+  if (method !== "GET" && method !== "HEAD" && !bearerToken) {
     return new Response(
-      JSON.stringify({ error: "Server misconfiguration: STRAPI_API_TOKEN is not set for write operations" }),
+      JSON.stringify({
+        error:
+          "Server misconfiguration: set STRAPI_API_TOKEN, or set STRAPI_ADMIN_EMAIL and STRAPI_ADMIN_PASSWORD",
+      }),
       {
         status: 500,
         headers: {
@@ -56,8 +96,8 @@ async function proxy(request: Request, ctx: Ctx): Promise<Response> {
   const contentType = request.headers.get("content-type") || "";
   const headers = new Headers();
 
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (bearerToken) {
+    headers.set("Authorization", `Bearer ${bearerToken}`);
   }
 
   if (contentType && !contentType.includes("multipart/form-data")) {
