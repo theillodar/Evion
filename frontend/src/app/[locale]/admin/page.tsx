@@ -110,9 +110,9 @@ export default function AdminPage({ params }: Props) {
         <form onSubmit={handleLogin} className="bg-[#181c2e] p-8 rounded-xl shadow-lg flex flex-col gap-4 w-full max-w-xs">
           <h2 className="text-xl font-bold text-white mb-2">Вхід в адмін-панель</h2>
           <input
-            type="email"
+            type="text"
             className="rounded border border-white/20 bg-white/10 px-3 py-2 text-white outline-none focus:ring focus:ring-blue-400"
-            placeholder="Email"
+            placeholder="Логін"
             value={email}
             onChange={e => setEmail(e.target.value)}
             autoFocus
