@@ -11,7 +11,7 @@ function normalizeSecret(secret: string): string {
 }
 
 export function getAdminPassword(): string {
-  return process.env.ADMIN_PANEL_PASSWORD ?? DEFAULT_PASSWORD;
+  return process.env.STRAPI_ADMIN_PASSWORD ?? process.env.ADMIN_PANEL_PASSWORD ?? DEFAULT_PASSWORD;
 }
 
 export function getAdminEmail(): string {
