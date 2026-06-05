@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import {
   ADMIN_SESSION_COOKIE,
   buildAdminSessionToken,
-  getAdminEmail,
   getAdminPassword,
 } from "@/lib/server-admin-auth";
 
@@ -11,7 +10,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type LoginBody = {
-  email?: string;
   password?: string;
 };
 
@@ -24,25 +22,15 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
   }
 
-  const inputEmail = payload.email ?? "";
-  const inputPassword = payload.password ?? "";
-  const expectedEmail = getAdminEmail();
-  const expectedPassword = getAdminPassword();
+  const input = payload.password ?? "";
+  const expected = getAdminPassword();
 
-  const emailBuf = Buffer.from(inputEmail);
-  const expectedEmailBuf = Buffer.from(expectedEmail);
-  const passwordBuf = Buffer.from(inputPassword);
-  const expectedPasswordBuf = Buffer.from(expectedPassword);
+  const inputBuf = Buffer.from(input);
+  const expectedBuf = Buffer.from(expected);
 
-  const emailValid =
-    emailBuf.length === expectedEmailBuf.length &&
-    crypto.timingSafeEqual(emailBuf, expectedEmailBuf);
+  const valid = inputBuf.length === expectedBuf.length && crypto.timingSafeEqual(inputBuf, expectedBuf);
 
-  const passwordValid =
-    passwordBuf.length === expectedPasswordBuf.length &&
-    crypto.timingSafeEqual(passwordBuf, expectedPasswordBuf);
-
-  if (!emailValid || !passwordValid) {
+  if (!valid) {
     return NextResponse.json({ ok: false, error: "Invalid credentials" }, { status: 401 });
   }
 

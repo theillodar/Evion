@@ -11,7 +11,6 @@ type Props = { params: Promise<{ locale: string }> };
 
 export default function AdminPage({ params }: Props) {
   const [authed, setAuthed] = useState(false);
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [locale, setLocale] = useState<Locale>("pl");
@@ -75,16 +74,15 @@ export default function AdminPage({ params }: Props) {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ password }),
       });
 
       if (res.ok) {
         setAuthed(true);
-        setEmail("");
         setPassword("");
         setError("");
       } else {
-        setError("Неправильний email або пароль");
+        setError("Неправильний пароль");
       }
     } catch {
       setError("Помилка входу. Спробуйте ще раз.");
@@ -96,7 +94,6 @@ export default function AdminPage({ params }: Props) {
       await fetch("/api/admin/logout", { method: "POST" });
     } finally {
       setAuthed(false);
-      setEmail("");
       setPassword("");
       setError("");
     }
@@ -110,21 +107,12 @@ export default function AdminPage({ params }: Props) {
         <form onSubmit={handleLogin} className="bg-[#181c2e] p-8 rounded-xl shadow-lg flex flex-col gap-4 w-full max-w-xs">
           <h2 className="text-xl font-bold text-white mb-2">Вхід в адмін-панель</h2>
           <input
-            type="text"
-            className="rounded border border-white/20 bg-white/10 px-3 py-2 text-white outline-none focus:ring focus:ring-blue-400"
-            placeholder="Логін"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            autoFocus
-            required
-          />
-          <input
             type="password"
             className="rounded border border-white/20 bg-white/10 px-3 py-2 text-white outline-none focus:ring focus:ring-blue-400"
             placeholder="Пароль"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            required
+            autoFocus
           />
           {error && <div className="text-red-400 text-sm">{error}</div>}
           <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 font-semibold">Увійти</button>
