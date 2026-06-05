@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 export const ADMIN_SESSION_COOKIE = "evion_admin_session";
 
-const DEFAULT_PASSWORD = "evionadmin";
+const DEFAULT_PASSWORD = "adminevion2026";
 const DEFAULT_EMAIL = "adminevion2026";
 const DEFAULT_SECRET = "change-this-admin-auth-secret";
 
