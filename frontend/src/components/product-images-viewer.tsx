@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import { X } from "lucide-react";
+import { SafeImage } from "@/components/safe-image";
 
 type Props = {
   images: string[];
@@ -23,7 +23,7 @@ export function ProductImagesViewer({ images, productName }: Props) {
           className="relative h-[320px] overflow-hidden rounded-xl border border-white/10 bg-black/30 sm:h-[420px] cursor-pointer hover:opacity-90 transition"
           onClick={() => setSelectedImage(images[0])}
         >
-          <Image
+          <SafeImage
             src={images[0]}
             alt={productName}
             fill
@@ -39,7 +39,7 @@ export function ProductImagesViewer({ images, productName }: Props) {
               className="relative h-24 overflow-hidden rounded-lg border border-white/10 bg-black/30 cursor-pointer hover:opacity-90 transition"
               onClick={() => setSelectedImage(image)}
             >
-              <Image src={image} alt={`${productName} ${index + 1}`} fill className="object-cover" />
+              <SafeImage src={image} alt={`${productName} ${index + 1}`} fill className="object-cover" />
             </div>
           ))}
         </div>
@@ -48,7 +48,7 @@ export function ProductImagesViewer({ images, productName }: Props) {
       {selectedImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4">
           <div className="relative max-w-5xl max-h-[90vh] flex items-center justify-center">
-            <Image
+            <SafeImage
               src={selectedImage}
               alt="Full size"
               width={1200}

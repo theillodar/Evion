@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Save, Trash2, X, Upload } from "lucide-react";
 import { getDefaultCategories } from "@/lib/default-categories";
 import { defaultLocale, isLocale } from "@/lib/i18n";
+import { formatFileSize, MAX_IMAGE_UPLOAD_COUNT, prepareImageForUpload } from "@/lib/image-upload";
 import { Product, ProductStatus, Translation } from "@/lib/types";
 
 type Draft = {
@@ -30,35 +31,67 @@ type Props = {
 const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337";
 const ADMIN_API_BASE = "/api/strapi";
 
-function parseRelationLabel(value: any): string {
-  return value?.data?.attributes?.name || value?.data?.name || value?.attributes?.name || value?.name || "";
+type UnknownRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): UnknownRecord {
+  return value && typeof value === "object" ? (value as UnknownRecord) : {};
 }
 
-function parseImagesFromProduct(raw: any): string[] {
-  const relation = raw?.images;
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function parseRelationLabel(value: unknown): string {
+  const root = asRecord(value);
+  const data = asRecord(root.data);
+  const dataAttributes = asRecord(data.attributes);
+  const attributes = asRecord(root.attributes);
+
+  return (
+    stringValue(dataAttributes.name) ||
+    stringValue(data.name) ||
+    stringValue(attributes.name) ||
+    stringValue(root.name)
+  );
+}
+
+function toAbsoluteStrapiUrl(url: string): string {
+  return url.startsWith("http") ? url : `${STRAPI_URL}${url}`;
+}
+
+function parseMediaUrl(value: unknown): string | undefined {
+  const item = asRecord(value);
+  const attributes = asRecord(item.attributes);
+  const url = stringValue(item.url) || stringValue(attributes.url);
+  return url ? toAbsoluteStrapiUrl(url) : undefined;
+}
+
+function parseImagesFromProduct(raw: unknown): string[] {
+  const relation = asRecord(raw).images;
   if (!relation) return [];
 
   if (Array.isArray(relation)) {
     return relation
-      .map((img) => img?.url || img?.attributes?.url)
-      .filter(Boolean)
-      .map((url) => (String(url).startsWith("http") ? String(url) : `${STRAPI_URL}${String(url)}`));
+      .map(parseMediaUrl)
+      .filter((url): url is string => Boolean(url));
   }
 
-  const relationData = relation?.data;
+  const relationData = asRecord(relation).data;
   if (!relationData) return [];
 
   const list = Array.isArray(relationData) ? relationData : [relationData];
   return list
-    .map((img) => img?.url || img?.attributes?.url)
-    .filter(Boolean)
-    .map((url) => (String(url).startsWith("http") ? String(url) : `${STRAPI_URL}${String(url)}`));
+    .map(parseMediaUrl)
+    .filter((url): url is string => Boolean(url));
 }
 
-function parseNameEntity(entry: any): { id: number; name: string } {
+function parseNameEntity(entry: unknown): { id: number; name: string } {
+  const root = asRecord(entry);
+  const attributes = asRecord(root.attributes);
+
   return {
-    id: Number(entry?.id ?? 0),
-    name: entry?.attributes?.name || entry?.name || "",
+    id: Number(root.id ?? 0),
+    name: stringValue(attributes.name) || stringValue(root.name),
   };
 }
 
@@ -104,25 +137,52 @@ export function AdminClient({ locale, initialProducts, initialBrands, initialCat
     images: [],
   });
 
-  // Handle file selection for images
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.currentTarget.files;
-    if (!files) return;
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.currentTarget.files ?? []);
+    e.currentTarget.value = "";
+    if (selectedFiles.length === 0) return;
 
-    const newImages: Array<{ url: string; file: File }> = [];
-    const newPreviews: string[] = [];
+    const availableSlots = Math.max(0, MAX_IMAGE_UPLOAD_COUNT - draft.images.length);
+    if (availableSlots === 0) {
+      setError(`You can attach up to ${MAX_IMAGE_UPLOAD_COUNT} photos per product.`);
+      setNotice("");
+      return;
+    }
 
-    Array.from(files).forEach((file) => {
-      const url = URL.createObjectURL(file);
-      newPreviews.push(url);
-      newImages.push({ url, file });
-    });
+    const filesToPrepare = selectedFiles.slice(0, availableSlots);
 
-    setDraft((prev) => ({
-      ...prev,
-      images: [...prev.images, ...newImages],
-    }));
-    setImagePreviews((prev) => [...prev, ...newPreviews]);
+    setLoading(true);
+    setError("");
+    setNotice("Preparing photos...");
+
+    try {
+      const preparedFiles = await Promise.all(filesToPrepare.map((file) => prepareImageForUpload(file)));
+      const newImages = preparedFiles.map((file) => ({
+        url: URL.createObjectURL(file),
+        file,
+      }));
+
+      setDraft((prev) => ({
+        ...prev,
+        images: [...prev.images, ...newImages],
+      }));
+      setImagePreviews((prev) => [...prev, ...newImages.map((image) => image.url)]);
+
+      const originalSize = filesToPrepare.reduce((sum, file) => sum + file.size, 0);
+      const preparedSize = preparedFiles.reduce((sum, file) => sum + file.size, 0);
+      const skipped = selectedFiles.length - filesToPrepare.length;
+
+      setNotice(
+        `Prepared ${preparedFiles.length} photo${preparedFiles.length === 1 ? "" : "s"} (${formatFileSize(
+          originalSize
+        )} -> ${formatFileSize(preparedSize)})${skipped > 0 ? `, skipped ${skipped}` : ""}.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to prepare photos");
+      setNotice("");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -131,7 +191,9 @@ export function AdminClient({ locale, initialProducts, initialBrands, initialCat
       images: prev.images.filter((_, i) => i !== index),
     }));
     setImagePreviews((prev) => {
-      URL.revokeObjectURL(prev[index]);
+      if (prev[index]?.startsWith("blob:")) {
+        URL.revokeObjectURL(prev[index]);
+      }
       return prev.filter((_, i) => i !== index);
     });
   };
@@ -147,15 +209,19 @@ export function AdminClient({ locale, initialProducts, initialBrands, initialCat
         ]);
 
         if (productsRes?.ok) {
-          const data = await productsRes.json();
-          const products = data.data?.map((item: any) => {
-            const source = item?.attributes ?? item;
+          const data = (await productsRes.json()) as { data?: unknown[] };
+          const products = data.data?.map((item: unknown) => {
+            const root = asRecord(item);
+            const source =
+              root.attributes && typeof root.attributes === "object"
+                ? asRecord(root.attributes)
+                : root;
             const name = String(source?.name ?? "").trim();
             const slug = String(source?.slug ?? "").trim();
 
             return {
-              id: Number(item?.id ?? source?.id ?? Date.now()),
-              documentId: String(item?.documentId ?? source?.documentId ?? "") || undefined,
+              id: Number(root.id ?? source.id ?? Date.now()),
+              documentId: String(root.documentId ?? source.documentId ?? "") || undefined,
               slug: slug || `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now().toString().slice(-4)}`,
               code: String(source?.code ?? ""),
               name,
@@ -249,6 +315,14 @@ export function AdminClient({ locale, initialProducts, initialBrands, initialCat
   }, [categories, items, safeLocale]);
 
   const resetDraft = () => {
+    setImagePreviews((prev) => {
+      for (const url of prev) {
+        if (url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      }
+      return [];
+    });
     setDraft({
       id: undefined,
       documentId: undefined,
@@ -261,7 +335,6 @@ export function AdminClient({ locale, initialProducts, initialBrands, initialCat
       code: "",
       images: [],
     });
-    setImagePreviews([]);
     setError("");
     setNotice("");
   };
@@ -269,11 +342,14 @@ export function AdminClient({ locale, initialProducts, initialBrands, initialCat
   const uploadImages = async (files: File[]): Promise<number[]> => {
     const uploadedIds: number[] = [];
     
-    for (const file of files) {
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      if (!file) continue;
       const formData = new FormData();
       formData.append("files", file);
 
       try {
+        setNotice(`Uploading photo ${index + 1}/${files.length}...`);
         const res = await fetch(`${ADMIN_API_BASE}/upload`, {
           method: "POST",
           body: formData,
@@ -463,7 +539,7 @@ export function AdminClient({ locale, initialProducts, initialBrands, initialCat
             status: (createdData.status || draft.status) as ProductStatus,
             description: createdData.description || draft.name,
             shortDescription: createdData.shortDescription || draft.name,
-            images: (createdData.images?.data || []).map((img: any) => `${STRAPI_URL}${img.attributes?.url || ""}`),
+            images: parseImagesFromProduct(createdData),
           },
           ...prev,
         ]);

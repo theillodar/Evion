@@ -1,8 +1,8 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ShieldCheck, Sparkles, Truck } from "lucide-react";
 import { ProductCard } from "@/components/product-card";
 import { CategoryCard } from "@/components/category-card";
+import { SafeImage } from "@/components/safe-image";
 import { getCatalogData } from "@/lib/content";
 import { isLocale, t } from "@/lib/i18n";
 import { Locale } from "@/lib/types";
@@ -59,7 +59,7 @@ export default async function HomePage({ params }: Props) {
                 >
                   {item.images[0] ? (
                     <div className="relative mb-2 h-16 w-full overflow-hidden rounded-lg border border-white/10 bg-black/30">
-                      <Image
+                      <SafeImage
                         src={item.images[0]}
                         alt={item.name}
                         fill
