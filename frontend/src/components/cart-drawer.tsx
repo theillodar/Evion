@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { X, Trash2, Send, MessageCircle, ShoppingCart } from "lucide-react";
+import { SafeImage } from "@/components/safe-image";
 import { useCart, CartItem } from "@/lib/cart-context";
 import { formatPrice } from "@/lib/catalog";
 import { getTelegramLink, getWhatsAppLink } from "@/lib/contact";
@@ -64,7 +64,7 @@ export function CartDrawer() {
               >
                 {item.product.images[0] && (
                   <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/30">
-                    <Image
+                    <SafeImage
                       src={item.product.images[0]}
                       alt={item.product.name}
                       fill

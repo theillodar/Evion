@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { motion } from "framer-motion";
+import { SafeImage } from "@/components/safe-image";
 import { Product, Translation, Locale } from "@/lib/types";
 import { formatPrice } from "@/lib/catalog";
 import { translateCategoryName } from "@/lib/category-translations";
@@ -38,7 +38,7 @@ export function ProductCard({ locale, product, tr, delay = 0, priorityImage = fa
             transition={{ duration: 0.3 }}
             className="relative h-full w-full"
           >
-            <Image
+            <SafeImage
               src={product.images[0]}
               alt={product.name}
               fill

@@ -29,14 +29,10 @@ export default {
       const actions = [
         'api::product.product.find',
         'api::product.product.findOne',
-        'api::product.product.create',
-        'api::product.product.update',
-        'api::product.product.delete',
         'api::brand.brand.find',
         'api::brand.brand.findOne',
         'api::category.category.find',
         'api::category.category.findOne',
-        'plugin::upload.content-api.upload',
       ];
 
       const permissionQuery = strapi.db.query('plugin::users-permissions.permission');

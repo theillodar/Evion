@@ -30,19 +30,27 @@ function generateCode(): string {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [cartLoaded, setCartLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("evion-cart");
-      if (saved) setItems(JSON.parse(saved));
-    } catch {}
+    window.requestAnimationFrame(() => {
+      try {
+        const saved = localStorage.getItem("evion-cart");
+        if (saved) {
+          setItems(JSON.parse(saved));
+        }
+      } catch {}
+      setCartLoaded(true);
+    });
   }, []);
 
   useEffect(() => {
+    if (!cartLoaded) return;
+
     try {
       localStorage.setItem("evion-cart", JSON.stringify(items));
     } catch {}
-  }, [items]);
+  }, [cartLoaded, items]);
 
   const addToCart = useCallback((product: Product) => {
     setItems((prev) => {

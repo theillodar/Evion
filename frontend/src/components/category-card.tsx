@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { translateCategoryName } from "@/lib/category-translations";
+import { defaultLocale, isLocale } from "@/lib/i18n";
 import {
   Laptop,
   Smartphone,
@@ -101,7 +102,7 @@ type Props = {
 };
 
 export function CategoryCard({ name, locale, index, delay = 0 }: Props) {
-  const translatedName = translateCategoryName(name, locale as any);
+  const translatedName = translateCategoryName(name, isLocale(locale) ? locale : defaultLocale);
   const Icon = categoryIconMap[name] || Sparkles;
   const emoji = categoryEmojiMap[name];
   const colorGradient = categoryColorMap[index % Object.keys(categoryColorMap).length];
