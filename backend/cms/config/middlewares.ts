@@ -13,7 +13,6 @@ const config: Core.Config.Middlewares = [
         directives: {
           'img-src': ["'self'", 'data:', 'blob:', 'res.cloudinary.com'],
           'media-src': ["'self'", 'data:', 'blob:', 'res.cloudinary.com'],
-          'upgrade-insecure-requests': null,
         },
       },
     },
